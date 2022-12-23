@@ -1,6 +1,7 @@
 package pl.jutupe.ktor_rabbitmq
 
-import com.rabbitmq.client.*
+import com.rabbitmq.client.Channel
+import com.rabbitmq.client.Delivery
 import io.ktor.server.application.Application
 import io.ktor.server.application.plugin
 
@@ -50,7 +51,6 @@ class ConsumerScope(
     private val channel: Channel,
     private val message: Delivery,
 ) {
-
     fun ack(multiple: Boolean = false) {
         channel.basicAck(message.envelope.deliveryTag, multiple)
     }
