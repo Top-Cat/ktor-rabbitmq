@@ -18,6 +18,17 @@ group = "pl.jutupe"
 version = System.getenv("BUILD_NUMBER")?.let { "0.4.$it" } ?: "0.4.0"
 
 publishing {
+    val sourceJarTask = task<Jar>("sourceJar") {
+        from(java.sourceSets["main"].allSource)
+        archiveClassifier.set("sources")
+    }
+
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+            artifact(sourceJarTask)
+        }
+    }
     repositories {
         maven {
             name = "reposilite"
