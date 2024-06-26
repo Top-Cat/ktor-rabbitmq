@@ -1,41 +1,25 @@
 package pl.jutupe.ktor_rabbitmq
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.testing.testApplication
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.slf4j.Logger
-
-private fun Application.testModule(host: String, port: Int) {
-    install(RabbitMQ) {
-        uri = "amqp://guest:guest@$host:$port"
-        connectionName = "Connection name"
-
-        enableLogging()
-
-        serialize { jacksonObjectMapper().writeValueAsBytes(it) }
-        deserialize { bytes, type -> jacksonObjectMapper().readValue(bytes, type.javaObjectType) }
-
-        initialize {
-            exchangeDeclare("exchange", "direct", true)
-            queueDeclare("queue", true, false, false, emptyMap())
-            queueBind("queue", "exchange", "routingKey")
-        }
-    }
-}
+import pl.jutupe.ktor_rabbitmq.modules.SerializationTestType
 
 class ConsumerTest : IntegrationTest() {
 
-    @Test
-    fun `should consume message when published`() {
+    @ParameterizedTest
+    @EnumSource(value = SerializationTestType::class)
+    fun `should consume message when published`(testType: SerializationTestType) {
         val consumer = mockk<ConsumerScope.(TestObject) -> Unit>()
 
         testApplication {
             application {
-                testModule(rabbit.host, rabbit.amqpPort)
+                testType.helper.testModule(this, rabbit.host, rabbit.amqpPort)
 
                 rabbitConsumer {
                     consume("queue", true, rabbitDeliverCallback = consumer)
@@ -51,13 +35,14 @@ class ConsumerTest : IntegrationTest() {
                 }
 
                 // then
-                verify { consumer.invoke(any(), eq(body)) }
+                verify(timeout = TIMEOUT) { consumer.invoke(any(), eq(body)) }
             }
         }
     }
 
-    @Test
-    fun `should consume message when published using precreated RabbitMQ`() {
+    @ParameterizedTest
+    @EnumSource(value = SerializationTestType::class)
+    fun `should consume message when published using precreated RabbitMQ`(testType: SerializationTestType) {
         val consumer = mockk<ConsumerScope.(TestObject) -> Unit>()
 
         testApplication {
@@ -66,22 +51,7 @@ class ConsumerTest : IntegrationTest() {
                     rabbitMQInstance = RabbitMQInstance(
                         RabbitMQConfiguration.create()
                             .apply {
-                                uri = "amqp://guest:guest@${rabbit.host}:${rabbit.amqpPort}"
-                                connectionName = "Connection name"
-
-                                serialize { jacksonObjectMapper().writeValueAsBytes(it) }
-                                deserialize { bytes, type ->
-                                    jacksonObjectMapper().readValue(
-                                        bytes,
-                                        type.javaObjectType
-                                    )
-                                }
-
-                                initialize {
-                                    exchangeDeclare("exchange", "direct", true)
-                                    queueDeclare("queue", true, false, false, emptyMap())
-                                    queueBind("queue", "exchange", "routingKey")
-                                }
+                                testType.helper.configure(this, rabbit.host, rabbit.amqpPort)
                             }
                     )
                 }
@@ -100,13 +70,14 @@ class ConsumerTest : IntegrationTest() {
                 }
 
                 // then
-                verify { consumer.invoke(any(), eq(body)) }
+                verify(timeout = TIMEOUT) { consumer.invoke(any(), eq(body)) }
             }
         }
     }
 
-    @Test
-    fun `should log error when invalid body published`() {
+    @ParameterizedTest
+    @EnumSource(value = SerializationTestType::class)
+    fun `should log error when invalid body published`(testType: SerializationTestType) {
         val consumer = mockk<ConsumerScope.(TestObject) -> Unit>()
         val logger = mockk<Logger>(relaxUnitFun = true)
 
@@ -116,7 +87,7 @@ class ConsumerTest : IntegrationTest() {
                 this.log = logger
             }
             application {
-                testModule(rabbit.host, rabbit.amqpPort)
+                testType.helper.testModule(this, rabbit.host, rabbit.amqpPort)
 
                 rabbitConsumer {
                     consume("queue", true, rabbitDeliverCallback = consumer)
@@ -131,9 +102,13 @@ class ConsumerTest : IntegrationTest() {
                 }
 
                 // then
-                verify { logger.error(any(), any<Throwable>()) }
+                verify(timeout = TIMEOUT) { logger.error(any(), any<Throwable>()) }
                 verify(exactly = 0) { consumer.invoke(any(), any()) }
             }
         }
+    }
+
+    companion object {
+        const val TIMEOUT = 1000L
     }
 }

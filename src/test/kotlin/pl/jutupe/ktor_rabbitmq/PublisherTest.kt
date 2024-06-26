@@ -1,29 +1,17 @@
 package pl.jutupe.ktor_rabbitmq
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.ktor.client.request.get
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
-import io.ktor.server.application.install
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
+import pl.jutupe.ktor_rabbitmq.modules.SerializationTestType
 
-private fun Application.testModule(host: String, port: Int) {
-    install(RabbitMQ) {
-        uri = "amqp://guest:guest@$host:$port"
-        connectionName = "Connection name"
-
-        serialize { jacksonObjectMapper().writeValueAsBytes(it) }
-        deserialize { bytes, type -> jacksonObjectMapper().readValue(bytes, type.javaObjectType) }
-
-        initialize {
-            exchangeDeclare("exchange", "direct", true)
-            queueDeclare("queue", true, false, false, emptyMap())
-            queueBind("queue", "exchange", "routingKey")
-        }
-    }
+private fun Application.testModule(testType: SerializationTestType, host: String, port: Int) {
+    testType.helper.testModule(this, host, port)
 
     routing {
         get("/test") {
@@ -36,11 +24,12 @@ private fun Application.testModule(host: String, port: Int) {
 
 class PublishTest : IntegrationTest() {
 
-    @Test
-    fun `should publish message when feature publish called`() =
+    @ParameterizedTest
+    @EnumSource(value = SerializationTestType::class)
+    fun `should publish message when feature publish called`(testType: SerializationTestType) =
         testApplication {
             application {
-                testModule(rabbit.host, rabbit.amqpPort)
+                testModule(testType, rabbit.host, rabbit.amqpPort)
 
                 // given
                 val exchange = "exchange"
@@ -55,11 +44,12 @@ class PublishTest : IntegrationTest() {
             }
         }
 
-    @Test
-    fun `should publish message when call publish called`() =
+    @ParameterizedTest
+    @EnumSource(value = SerializationTestType::class)
+    fun `should publish message when call publish called`(testType: SerializationTestType) =
         testApplication {
             application {
-                testModule(rabbit.host, rabbit.amqpPort)
+                testModule(testType, rabbit.host, rabbit.amqpPort)
             }
 
             // given

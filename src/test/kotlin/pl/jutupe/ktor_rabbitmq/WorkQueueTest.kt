@@ -2,13 +2,15 @@ package pl.jutupe.ktor_rabbitmq
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.rabbitmq.client.MessageProperties
-import io.ktor.server.application.Application
-import io.ktor.server.application.install
 import io.ktor.server.testing.testApplication
+import kotlinx.serialization.Serializable
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
+import pl.jutupe.ktor_rabbitmq.modules.SerializationTestType
 
+@Serializable
 data class TestTask(val key: String, val delay: Long)
 
 class TestConsumer {
@@ -23,26 +25,11 @@ class TestConsumer {
     }
 }
 
-private fun Application.testModule(host: String, port: Int) {
-    install(RabbitMQ) {
-        uri = "amqp://guest:guest@$host:$port"
-        connectionName = "Connection name"
-
-        serialize { jacksonObjectMapper().writeValueAsBytes(it) }
-        deserialize { bytes, type -> jacksonObjectMapper().readValue(bytes, type.javaObjectType) }
-
-        initialize {
-            exchangeDeclare("exchange", "direct", true)
-            queueDeclare("workQueue", true, false, false, emptyMap())
-            queueBind("workQueue", "exchange", "routingKey")
-        }
-    }
-}
-
 class WorkQueueTest : IntegrationTest() {
 
-    @Test
-    fun `should consume task when published`() {
+    @ParameterizedTest
+    @EnumSource(value = SerializationTestType::class)
+    fun `should consume task when published`(testType: SerializationTestType) {
         // given
         val consumer1 = TestConsumer()
         val consumer2 = TestConsumer()
@@ -50,7 +37,7 @@ class WorkQueueTest : IntegrationTest() {
 
         testApplication {
             application {
-                testModule(rabbit.host, rabbit.amqpPort)
+                testType.helper.testModule(this, rabbit.host, rabbit.amqpPort, "workQueue")
 
                 rabbitConsumer {
                     consume<TestTask>("workQueue", false, 1) { body ->

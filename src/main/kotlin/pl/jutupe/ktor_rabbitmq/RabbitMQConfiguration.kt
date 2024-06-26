@@ -16,7 +16,7 @@ class RabbitMQConfiguration private constructor() {
 
     internal lateinit var initializeBlock: (Channel.() -> Unit)
 
-    lateinit var serializeBlock: (Any) -> ByteArray
+    lateinit var serializeBlock: (Any, KClass<*>) -> ByteArray
     lateinit var deserializeBlock: (ByteArray, KClass<*>) -> Any
 
     /**
@@ -37,7 +37,7 @@ class RabbitMQConfiguration private constructor() {
     /**
      * @param [block] used for message body serialization.
      */
-    fun serialize(block: (Any) -> ByteArray) {
+    fun serialize(block: (Any, KClass<*>) -> ByteArray) {
         serializeBlock = block
     }
 

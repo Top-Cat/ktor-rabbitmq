@@ -1,37 +1,22 @@
 package pl.jutupe.ktor_rabbitmq
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.testing.testApplication
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
+import pl.jutupe.ktor_rabbitmq.modules.SerializationTestType
 import java.io.IOException
-
-private fun Application.testModule(host: String, port: Int) {
-    install(RabbitMQ) {
-        uri = "amqp://guest:guest@$host:$port"
-        connectionName = "Connection name"
-
-        serialize { jacksonObjectMapper().writeValueAsBytes(it) }
-        deserialize { bytes, type -> jacksonObjectMapper().readValue(bytes, type.javaObjectType) }
-
-        initialize {
-            exchangeDeclare("exchange", "direct", true)
-            queueDeclare("queue", true, false, false, emptyMap())
-            queueBind("queue", "exchange", "routingKey")
-        }
-    }
-}
 
 class InitializeTest : IntegrationTest() {
 
-    @Test
-    fun `should create queue when declared in initialize block`(): Unit =
+    @ParameterizedTest
+    @EnumSource(value = SerializationTestType::class)
+    fun `should create queue when declared in initialize block`(testType: SerializationTestType): Unit =
         testApplication {
             application {
-                testModule(rabbit.host, rabbit.amqpPort)
+                testType.helper.testModule(this, rabbit.host, rabbit.amqpPort)
 
                 // when
                 assertDoesNotThrow {
@@ -42,11 +27,12 @@ class InitializeTest : IntegrationTest() {
             }
         }
 
-    @Test
-    fun `should throw when queue not created in initialize block`(): Unit =
+    @ParameterizedTest
+    @EnumSource(value = SerializationTestType::class)
+    fun `should throw when queue not created in initialize block`(testType: SerializationTestType): Unit =
         testApplication {
             application {
-                testModule(rabbit.host, rabbit.amqpPort)
+                testType.helper.testModule(this, rabbit.host, rabbit.amqpPort)
 
                 // when
                 assertThrows<IOException> {
@@ -57,25 +43,16 @@ class InitializeTest : IntegrationTest() {
             }
         }
 
-    @Test
-    fun `should support passing pre-initialized instance of RabbitMQ`(): Unit =
+    @ParameterizedTest
+    @EnumSource(value = SerializationTestType::class)
+    fun `should support passing pre-initialized instance of RabbitMQ`(testType: SerializationTestType): Unit =
         testApplication {
             application {
                 install(RabbitMQ) {
                     rabbitMQInstance = RabbitMQInstance(
                         RabbitMQConfiguration.create()
                             .apply {
-                                uri = "amqp://guest:guest@${rabbit.host}:${rabbit.amqpPort}"
-                                connectionName = "Connection name"
-
-                                serialize { jacksonObjectMapper().writeValueAsBytes(it) }
-                                deserialize { bytes, type -> jacksonObjectMapper().readValue(bytes, type.javaObjectType) }
-
-                                initialize {
-                                    exchangeDeclare("exchange", "direct", true)
-                                    queueDeclare("queue", true, false, false, emptyMap())
-                                    queueBind("queue", "exchange", "routingKey")
-                                }
+                                testType.helper.configure(this, rabbit.host, rabbit.amqpPort)
                             }
                     )
                 }

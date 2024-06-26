@@ -2,6 +2,7 @@ package pl.jutupe.ktor_rabbitmq
 
 import com.rabbitmq.client.Channel
 import com.rabbitmq.client.ConnectionFactory
+import kotlinx.serialization.Serializable
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.testcontainers.containers.RabbitMQContainer
 import org.testcontainers.junit.jupiter.Container
@@ -44,7 +45,9 @@ open class IntegrationTest {
         }
     }
 
+    @Serializable
     data class TestObject(val key: String)
 
+    @Serializable
     data class AnotherTestObject(val string: String, val int: Int)
 }
