@@ -1,4 +1,3 @@
-import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 plugins {
@@ -83,7 +82,7 @@ kotlin {
 tasks.test {
     useJUnitPlatform()
     testLogging {
-        events = mutableSetOf(TestLogEvent.PASSED, TestLogEvent.SKIPPED, TestLogEvent.FAILED)
+        showStandardStreams = true
     }
 }
 
