@@ -61,6 +61,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
+    testImplementation("ch.qos.logback:logback-classic:1.5.6")
     testImplementation("io.mockk:mockk:$mockkVersion")
 
     testImplementation("org.testcontainers:rabbitmq:$testcontainersVersion")
